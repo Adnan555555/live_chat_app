@@ -1,0 +1,44 @@
+name: flutter_chat_app
+description: A real-time chat application powered by Firebase.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  cloud_firestore: ^4.14.0
+  firebase_storage: ^11.6.0
+
+  # UI & Utils
+  cached_network_image: ^3.3.1
+  image_picker: ^1.0.7
+  intl: ^0.19.0
+  uuid: ^4.3.3
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.5.0
+  emoji_picker_flutter: ^2.1.0
+  url_launcher: ^6.2.4
+  shared_preferences: ^2.2.2
+  zego_uikit_prebuilt_call: ^4.22.3
+  flutter_callkit_incoming:
+  provider: ^6.1.1
+  permission_handler:
+  agora_rtc_engine:
+  timeago: ^3.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
