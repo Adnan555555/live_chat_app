@@ -29,9 +29,12 @@ dependencies:
   zego_uikit_prebuilt_call: ^4.22.3
   flutter_callkit_incoming:
   provider: ^6.1.1
+  firebase_messaging:
   permission_handler:
   agora_rtc_engine:
   timeago: ^3.6.0
+  record:
+  flutter_local_notifications:
 
 dev_dependencies:
   flutter_test:

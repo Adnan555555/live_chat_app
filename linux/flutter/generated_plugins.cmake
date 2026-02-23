@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   emoji_picker_flutter
   file_selector_linux
   flutter_volume_controller
+  record_linux
   url_launcher_linux
   zego_express_engine
 )

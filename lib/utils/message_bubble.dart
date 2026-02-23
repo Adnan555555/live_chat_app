@@ -1,8 +1,8 @@
-// lib/widgets/message_bubble.dart
+// lib/utils/message_bubble.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import '../const/app_constatnts.dart';
 import '../model/message_model.dart';
 
@@ -10,28 +10,21 @@ class MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
 
-  const MessageBubble({
-    super.key,
-    required this.message,
-    required this.isMe,
-  });
+  const MessageBubble({super.key, required this.message, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
-    if (message.isDeleted) {
-      return _buildDeletedBubble();
-    }
+    if (message.isDeleted) return _buildDeletedBubble();
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.72,
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         child: Container(
           margin: EdgeInsets.only(
-            top: 2,
-            bottom: 2,
+            top: 2, bottom: 2,
             left: isMe ? 48 : 0,
             right: isMe ? 0 : 48,
           ),
@@ -39,11 +32,7 @@ class MessageBubble extends StatelessWidget {
             crossAxisAlignment:
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              // Reply preview
-              if (message.replyToId != null && message.replyToContent != null)
-                _buildReplyPreview(),
-
-              // Bubble
+              if (message.replyToId != null) _buildReplyPreview(),
               Container(
                 decoration: BoxDecoration(
                   color: isMe ? AppTheme.myBubble : AppTheme.otherBubble,
@@ -61,15 +50,26 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: message.type == MessageType.image
-                    ? _buildImageContent()
-                    : _buildTextContent(),
+                child: _buildContent(context),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    switch (message.type) {
+      case MessageType.image:
+        return _buildImageContent();
+      case MessageType.audio:
+        return _buildAudioContent();
+      case MessageType.file:
+        return _buildFileContent(context);
+      default:
+        return _buildTextContent();
+    }
   }
 
   Widget _buildTextContent() {
@@ -108,7 +108,7 @@ class MessageBubble extends StatelessWidget {
             width: 220,
             height: 220,
             fit: BoxFit.cover,
-            placeholder: (ctx, url) => Container(
+            placeholder: (_, __) => Container(
               width: 220,
               height: 220,
               color: AppTheme.surfaceLight,
@@ -117,7 +117,8 @@ class MessageBubble extends StatelessWidget {
                     color: AppTheme.secondary, strokeWidth: 2),
               ),
             ),
-            errorWidget: (ctx, url, err) => const Icon(Icons.error_outline),
+            errorWidget: (_, __, ___) =>
+            const Icon(Icons.error_outline, color: AppTheme.error),
           ),
         ),
         Positioned(
@@ -134,6 +135,207 @@ class MessageBubble extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  // ✅ Audio bubble with play button
+  Widget _buildAudioContent() {
+    final duration = message.fileSize ?? 0;
+    final minutes = duration ~/ 60;
+    final seconds = duration % 60;
+    final durationText =
+        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => launchUrl(Uri.parse(message.content)),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isMe
+                    ? AppTheme.primary.withOpacity(0.2)
+                    : AppTheme.secondary.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: isMe ? AppTheme.primary : AppTheme.secondary,
+                size: 26,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Waveform visual
+              Row(
+                children: List.generate(
+                  12,
+                      (i) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                    width: 3,
+                    height: (i % 3 == 0 ? 18 : i % 3 == 1 ? 12 : 8)
+                        .toDouble(),
+                    decoration: BoxDecoration(
+                      color: isMe
+                          ? AppTheme.primary.withOpacity(0.5)
+                          : AppTheme.secondary.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    '🎵 $durationText',
+                    style: TextStyle(
+                      color: isMe
+                          ? AppTheme.primary.withOpacity(0.7)
+                          : AppTheme.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTimestamp(),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ File bubble with download button
+  Widget _buildFileContent(BuildContext context) {
+    final fileName = message.fileName ?? 'File';
+    final fileSize = message.fileSize ?? 0;
+    final fileSizeStr = fileSize > 1024 * 1024
+        ? '${(fileSize / (1024 * 1024)).toStringAsFixed(1)} MB'
+        : fileSize > 1024
+        ? '${(fileSize / 1024).toStringAsFixed(1)} KB'
+        : '$fileSize B';
+
+    final ext = fileName.contains('.')
+        ? fileName.split('.').last.toUpperCase()
+        : 'FILE';
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: GestureDetector(
+        onTap: () async {
+          final uri = Uri.parse(message.content);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // File icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isMe
+                    ? AppTheme.primary.withOpacity(0.2)
+                    : AppTheme.secondary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _getFileIcon(ext),
+                    color: isMe ? AppTheme.primary : AppTheme.secondary,
+                    size: 22,
+                  ),
+                  Text(
+                    ext.length > 4 ? ext.substring(0, 4) : ext,
+                    style: TextStyle(
+                      color: isMe ? AppTheme.primary : AppTheme.secondary,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fileName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isMe ? AppTheme.primary : AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        fileSizeStr,
+                        style: TextStyle(
+                          color: isMe
+                              ? AppTheme.primary.withOpacity(0.6)
+                              : AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTimestamp(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.download_rounded,
+              color: isMe ? AppTheme.primary : AppTheme.secondary,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getFileIcon(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf_rounded;
+      case 'doc':
+      case 'docx':
+        return Icons.description_rounded;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart_rounded;
+      case 'zip':
+      case 'rar':
+        return Icons.folder_zip_rounded;
+      case 'mp3':
+      case 'wav':
+        return Icons.audio_file_rounded;
+      case 'mp4':
+      case 'mov':
+        return Icons.video_file_rounded;
+      default:
+        return Icons.insert_drive_file_rounded;
+    }
   }
 
   Widget _buildReplyPreview() {
@@ -156,11 +358,13 @@ class MessageBubble extends StatelessWidget {
         ),
       ),
       child: Text(
-        message.replyToContent!,
+        message.replyToContent ?? '',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: isMe ? AppTheme.primary.withOpacity(0.7) : AppTheme.textSecondary,
+          color: isMe
+              ? AppTheme.primary.withOpacity(0.7)
+              : AppTheme.textSecondary,
           fontSize: 12,
         ),
       ),
@@ -199,13 +403,11 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildTimestamp({bool light = false}) {
-    final timeText = DateFormat('hh:mm a').format(message.timestamp);
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          timeText,
+          DateFormat('hh:mm a').format(message.timestamp),
           style: TextStyle(
             color: light
                 ? Colors.white.withOpacity(0.85)

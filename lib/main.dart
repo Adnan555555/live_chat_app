@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_chat_app/view/splash/splash_view.dart';
 import 'const/app_constatnts.dart';
 import 'firebase_options.dart';
+import 'service/notification_service.dart'; // ✅ ADD THIS
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ Initialize notifications AFTER Firebase
+  await NotificationService().initialize();
 
   // Set status bar style
   SystemChrome.setSystemUIOverlayStyle(

@@ -1,7 +1,8 @@
-// lib/models/message_model.dart
+// lib/model/message_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MessageType { text, image, audio }
+// ✅ Added file type
+enum MessageType { text, image, audio, file }
 
 enum MessageStatus { sending, sent, delivered, read }
 
@@ -16,6 +17,8 @@ class MessageModel {
   final bool isDeleted;
   final String? replyToId;
   final String? replyToContent;
+  final String? fileName;   // ✅ for file messages
+  final int? fileSize;      // ✅ file size in bytes, or duration in seconds for audio
 
   MessageModel({
     required this.id,
@@ -28,6 +31,8 @@ class MessageModel {
     this.isDeleted = false,
     this.replyToId,
     this.replyToContent,
+    this.fileName,
+    this.fileSize,
   });
 
   factory MessageModel.fromMap(Map<String, dynamic> map, String id) {
@@ -48,6 +53,8 @@ class MessageModel {
       isDeleted: map['isDeleted'] ?? false,
       replyToId: map['replyToId'],
       replyToContent: map['replyToContent'],
+      fileName: map['fileName'],
+      fileSize: map['fileSize'],
     );
   }
 
@@ -62,6 +69,8 @@ class MessageModel {
       'isDeleted': isDeleted,
       'replyToId': replyToId,
       'replyToContent': replyToContent,
+      'fileName': fileName,
+      'fileSize': fileSize,
     };
   }
 
@@ -77,6 +86,8 @@ class MessageModel {
       isDeleted: isDeleted ?? this.isDeleted,
       replyToId: replyToId,
       replyToContent: replyToContent,
+      fileName: fileName,
+      fileSize: fileSize,
     );
   }
 }
