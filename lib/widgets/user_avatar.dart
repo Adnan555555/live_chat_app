@@ -1,8 +1,7 @@
 // lib/widgets/user_avatar.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
-import '../const/app_constatnts.dart';
+import '../const/app_constants.dart';
 import '../model/user_model.dart';
 
 class UserAvatar extends StatelessWidget {
@@ -20,6 +19,7 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         Container(
           width: size,
@@ -28,29 +28,24 @@ class UserAvatar extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: user.photoUrl.isEmpty
                 ? LinearGradient(
-              colors: _getAvatarColors(user.name),
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
+                    colors: _getAvatarColors(user.name),
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
                 : null,
-            border: Border.all(
-              color: AppTheme.divider,
-              width: 1.5,
-            ),
+            border: Border.all(color: AppTheme.divider, width: 1.5),
           ),
           child: ClipOval(
             child: user.photoUrl.isNotEmpty
                 ? CachedNetworkImage(
-              imageUrl: user.photoUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => _buildInitials(),
-              errorWidget: (_, __, ___) => _buildInitials(),
-            )
+                    imageUrl: user.photoUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => _buildInitials(),
+                    errorWidget: (_, __, ___) => _buildInitials(),
+                  )
                 : _buildInitials(),
           ),
         ),
-
-        // Online indicator
         if (showOnlineIndicator && user.isOnline)
           Positioned(
             right: 0,
@@ -71,13 +66,8 @@ class UserAvatar extends StatelessWidget {
 
   Widget _buildInitials() {
     final initials = user.name.isNotEmpty
-        ? user.name
-        .split(' ')
-        .take(2)
-        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
-        .join()
+        ? user.name.split(' ').take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join()
         : '?';
-
     return Container(
       alignment: Alignment.center,
       child: Text(
@@ -92,7 +82,7 @@ class UserAvatar extends StatelessWidget {
   }
 
   List<Color> _getAvatarColors(String name) {
-    final colorSets = [
+    final sets = [
       [const Color(0xFF00D4B4), const Color(0xFF007B6E)],
       [const Color(0xFF7B2FBE), const Color(0xFF4A1080)],
       [const Color(0xFFFF6B6B), const Color(0xFFCC4444)],
@@ -100,8 +90,7 @@ class UserAvatar extends StatelessWidget {
       [const Color(0xFFFFBE0B), const Color(0xFFC48A00)],
       [const Color(0xFF3A86FF), const Color(0xFF1A5FBF)],
     ];
-
-    final index = name.isNotEmpty ? name.codeUnitAt(0) % colorSets.length : 0;
-    return colorSets[index];
+    final index = name.isNotEmpty ? name.codeUnitAt(0) % sets.length : 0;
+    return sets[index];
   }
 }

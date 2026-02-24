@@ -1,8 +1,8 @@
 // lib/model/message_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// ✅ Added file type
-enum MessageType { text, image, audio, file }
+// ✅ Only text and audio — no file/image (no Firebase Storage needed)
+enum MessageType { text, audio }
 
 enum MessageStatus { sending, sent, delivered, read }
 
@@ -10,15 +10,14 @@ class MessageModel {
   final String id;
   final String senderId;
   final String receiverId;
-  final String content;
+  final String content;       // text content OR base64 audio data URL
   final MessageType type;
   final MessageStatus status;
   final DateTime timestamp;
   final bool isDeleted;
   final String? replyToId;
   final String? replyToContent;
-  final String? fileName;   // ✅ for file messages
-  final int? fileSize;      // ✅ file size in bytes, or duration in seconds for audio
+  final int? audioDuration;   // duration in seconds for audio messages
 
   MessageModel({
     required this.id,
@@ -31,8 +30,7 @@ class MessageModel {
     this.isDeleted = false,
     this.replyToId,
     this.replyToContent,
-    this.fileName,
-    this.fileSize,
+    this.audioDuration,
   });
 
   factory MessageModel.fromMap(Map<String, dynamic> map, String id) {
@@ -42,19 +40,18 @@ class MessageModel {
       receiverId: map['receiverId'] ?? '',
       content: map['content'] ?? '',
       type: MessageType.values.firstWhere(
-            (e) => e.name == (map['type'] ?? 'text'),
+        (e) => e.name == (map['type'] ?? 'text'),
         orElse: () => MessageType.text,
       ),
       status: MessageStatus.values.firstWhere(
-            (e) => e.name == (map['status'] ?? 'sent'),
+        (e) => e.name == (map['status'] ?? 'sent'),
         orElse: () => MessageStatus.sent,
       ),
       timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isDeleted: map['isDeleted'] ?? false,
       replyToId: map['replyToId'],
       replyToContent: map['replyToContent'],
-      fileName: map['fileName'],
-      fileSize: map['fileSize'],
+      audioDuration: map['audioDuration'],
     );
   }
 
@@ -69,8 +66,7 @@ class MessageModel {
       'isDeleted': isDeleted,
       'replyToId': replyToId,
       'replyToContent': replyToContent,
-      'fileName': fileName,
-      'fileSize': fileSize,
+      'audioDuration': audioDuration,
     };
   }
 
@@ -86,8 +82,7 @@ class MessageModel {
       isDeleted: isDeleted ?? this.isDeleted,
       replyToId: replyToId,
       replyToContent: replyToContent,
-      fileName: fileName,
-      fileSize: fileSize,
+      audioDuration: audioDuration,
     );
   }
 }

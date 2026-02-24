@@ -1,5 +1,5 @@
 name: flutter_chat_app
-description: A real-time chat application powered by Firebase.
+description: Wavechat - Real-time chat application
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -11,30 +11,39 @@ dependencies:
     sdk: flutter
 
   # Firebase
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.16.0
-  cloud_firestore: ^4.14.0
-  firebase_storage: ^11.6.0
+  firebase_core: ^2.25.4
 
-  # UI & Utils
+  firebase_auth:
+
+  cloud_firestore: ^4.14.0
+  firebase_messaging: ^14.7.10
+
+  # Google Sign In
+  google_sign_in: ^6.2.1
+
+
+  # State Management
+  get: ^4.6.6
+
+  # UI
   cached_network_image: ^3.3.1
-  image_picker: ^1.0.7
-  intl: ^0.19.0
-  uuid: ^4.3.3
-  google_fonts: ^6.1.0
   flutter_animate: ^4.5.0
-  emoji_picker_flutter: ^2.1.0
-  url_launcher: ^6.2.4
-  shared_preferences: ^2.2.2
-  zego_uikit_prebuilt_call: ^4.22.3
-  flutter_callkit_incoming:
-  provider: ^6.1.1
-  firebase_messaging:
-  permission_handler:
-  agora_rtc_engine:
+  google_fonts: ^6.1.0
+
+  # Audio (voice messages only - NO storage for files/images)
+  record: ^6.2.0
+  audioplayers: ^6.0.0
+  path_provider: ^2.1.2
+
+  # Notifications
+  flutter_local_notifications: ^20.1.0
+
+  # Utils
+  uuid: ^4.3.3
+  intl: ^0.19.0
   timeago: ^3.6.0
-  record:
-  flutter_local_notifications:
+  permission_handler: ^11.3.1
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

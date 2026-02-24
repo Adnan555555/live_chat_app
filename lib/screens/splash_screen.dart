@@ -1,10 +1,12 @@
 // lib/screens/splash_screen.dart
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../const/app_constatnts.dart';
-import '../auth/login_screen.dart';
-import '../home/home_screen.dart';
+import 'package:get/get.dart';
+import '../const/app_constants.dart';
+import 'auth/login_screen.dart';
+import 'auth/verify_email_screen.dart';
+import 'home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,15 +27,14 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-        user != null ? const HomeScreen() : const LoginScreen(),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
+    if (user == null) {
+      Get.offAll(() => const LoginScreen());
+    } else if (!user.emailVerified && user.providerData.first.providerId == 'password') {
+      // Email user but not verified
+      Get.offAll(() => const VerifyEmailScreen());
+    } else {
+      Get.offAll(() => const HomeScreen());
+    }
   }
 
   @override
@@ -58,23 +59,19 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.waves_rounded,
-                color: AppTheme.primary,
-                size: 48,
-              ),
+              child: const Icon(Icons.waves_rounded,
+                  color: AppTheme.primary, size: 48),
             )
                 .animate()
                 .scale(
-              begin: const Offset(0.5, 0.5),
-              duration: 600.ms,
-              curve: Curves.elasticOut,
-            )
+                    begin: const Offset(0.5, 0.5),
+                    duration: 600.ms,
+                    curve: Curves.elasticOut)
                 .fadeIn(duration: 400.ms),
             const SizedBox(height: 24),
-            Text(
+            const Text(
               AppConstants.appName,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 32,
                 fontWeight: FontWeight.w800,

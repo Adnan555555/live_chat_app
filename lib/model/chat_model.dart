@@ -1,4 +1,4 @@
-// lib/models/chat_model.dart
+// lib/model/chat_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatModel {
@@ -27,7 +27,7 @@ class ChatModel {
       lastMessage: map['lastMessage'] ?? '',
       lastMessageSenderId: map['lastMessageSenderId'] ?? '',
       lastMessageTime:
-      (map['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          (map['lastMessageTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
       unreadCount: Map<String, int>.from(map['unreadCount'] ?? {}),
       lastMessageType: map['lastMessageType'] ?? 'text',
     );
@@ -42,10 +42,5 @@ class ChatModel {
       'unreadCount': unreadCount,
       'lastMessageType': lastMessageType,
     };
-  }
-
-  String getChatId(String uid1, String uid2) {
-    final sorted = [uid1, uid2]..sort();
-    return '${sorted[0]}_${sorted[1]}';
   }
 }

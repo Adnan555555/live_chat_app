@@ -2,23 +2,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_chat_app/view/splash/splash_view.dart';
-import 'const/app_constatnts.dart';
+import 'package:get/get.dart';
+import 'const/app_constants.dart';
 import 'firebase_options.dart';
-import 'service/notification_service.dart'; // ✅ ADD THIS
+import 'service/notification_service.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ Initialize notifications AFTER Firebase
+  // Initialize notifications after Firebase
   await NotificationService().initialize();
 
-  // Set status bar style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -26,7 +25,6 @@ void main() async {
     ),
   );
 
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -40,10 +38,11 @@ class WavechatApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      defaultTransition: Transition.fade,
       home: const SplashScreen(),
     );
   }

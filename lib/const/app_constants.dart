@@ -1,9 +1,8 @@
-// lib/utils/app_theme.dart
+// lib/const/app_constants.dart
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Color Palette — Deep Navy + Electric Teal
   static const Color primary = Color(0xFF0D1B2A);
   static const Color secondary = Color(0xFF00D4B4);
   static const Color accent = Color(0xFF7B2FBE);
@@ -81,14 +80,7 @@ class AppTheme {
 
 class AppConstants {
   static const String appName = 'Wavechat';
-
-  // Firestore Collections
   static const String usersCollection = 'users';
   static const String chatsCollection = 'chats';
   static const String messagesCollection = 'messages';
-
-  // Message Types
-  static const String textMessage = 'text';
-  static const String imageMessage = 'image';
-  static const String audioMessage = 'audio';
 }
