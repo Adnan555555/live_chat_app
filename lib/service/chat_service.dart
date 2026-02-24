@@ -87,7 +87,7 @@ class ChatService {
     });
 
     final chatRef =
-        _firestore.collection(AppConstants.chatsCollection).doc(chatId);
+    _firestore.collection(AppConstants.chatsCollection).doc(chatId);
     batch.update(chatRef, {
       'lastMessage': content,
       'lastMessageSenderId': myUid,
@@ -100,7 +100,7 @@ class ChatService {
 
     // Send notification
     final senderDoc =
-        await _firestore.collection('users').doc(myUid).get();
+    await _firestore.collection('users').doc(myUid).get();
     final senderName = senderDoc.data()?['name'] ?? 'Someone';
     await _notificationService.sendMessageNotification(
       receiverId: receiverId,
@@ -111,7 +111,6 @@ class ChatService {
   }
 
   // ✅ Send audio message — stored as base64 in Firestore (no Storage needed)
-  // Audio files are small (~50KB for 30s voice note) — safe to store in Firestore
   Future<void> sendAudioMessage({
     required String chatId,
     required String receiverId,
@@ -122,7 +121,6 @@ class ChatService {
     final messageId = _uuid.v4();
     final now = DateTime.now();
 
-    // Convert audio to base64 for Firestore storage
     final bytes = await audioFile.readAsBytes();
     final base64Audio = base64Encode(bytes);
 
@@ -147,7 +145,7 @@ class ChatService {
     });
 
     final chatRef =
-        _firestore.collection(AppConstants.chatsCollection).doc(chatId);
+    _firestore.collection(AppConstants.chatsCollection).doc(chatId);
     batch.update(chatRef, {
       'lastMessage': '🎵 Voice message',
       'lastMessageSenderId': myUid,
@@ -158,9 +156,8 @@ class ChatService {
 
     await batch.commit();
 
-    // Send notification
     final senderDoc =
-        await _firestore.collection('users').doc(myUid).get();
+    await _firestore.collection('users').doc(myUid).get();
     final senderName = senderDoc.data()?['name'] ?? 'Someone';
     await _notificationService.sendMessageNotification(
       receiverId: receiverId,
@@ -178,15 +175,21 @@ class ChatService {
         .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snap) => snap.docs
-            .map((doc) => MessageModel.fromMap(doc.data(), doc.id))
-            .toList());
+        .map((doc) => MessageModel.fromMap(doc.data(), doc.id))
+        .toList());
   }
 
-  Stream<List<ChatModel>> getUserChats() {
-    final myUid = currentUserId;
+  // FIX: Original getUserChats() read currentUserId lazily inside the stream
+  // closure — fine at the Firestore level, but the _ChatsTab widget captured
+  // the stream at build time and, because it lives in an IndexedStack, never
+  // rebuilt when the user switched accounts. The new method accepts the uid
+  // explicitly so the caller can key the StreamBuilder on it and force a full
+  // stream replacement on account switch.
+  Stream<List<ChatModel>> getUserChatsForUser(String uid) {
+    if (uid.isEmpty) return const Stream.empty();
     return _firestore
         .collection(AppConstants.chatsCollection)
-        .where('participants', arrayContains: myUid)
+        .where('participants', arrayContains: uid)
         .snapshots()
         .map((snap) {
       final chats = snap.docs
@@ -195,6 +198,11 @@ class ChatService {
       chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
       return chats;
     });
+  }
+
+  // Keep original for any code that still calls it directly
+  Stream<List<ChatModel>> getUserChats() {
+    return getUserChatsForUser(currentUserId);
   }
 
   Future<void> markMessagesAsRead(String chatId) async {
@@ -234,9 +242,9 @@ class ChatService {
         .collection(AppConstants.usersCollection)
         .snapshots()
         .map((snap) => snap.docs
-            .map((doc) => UserModel.fromMap(doc.data()))
-            .where((u) => u.uid != myUid && u.uid.isNotEmpty)
-            .toList());
+        .map((doc) => UserModel.fromMap(doc.data()))
+        .where((u) => u.uid != myUid && u.uid.isNotEmpty)
+        .toList());
   }
 
   Future<UserModel?> getUserById(String uid) async {
@@ -288,6 +296,6 @@ class ChatService {
         .doc(chatId)
         .snapshots()
         .map((doc) => Map<String, dynamic>.from(
-            (doc.data()?['typing'] as Map<String, dynamic>?) ?? {}));
+        (doc.data()?['typing'] as Map<String, dynamic>?) ?? {}));
   }
 }

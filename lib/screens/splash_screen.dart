@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import '../const/app_constants.dart';
+import '../service/auth_service.dart';
 import 'auth/login_screen.dart';
 import 'auth/verify_email_screen.dart';
 import 'home/home_screen.dart';
@@ -27,14 +28,37 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) {
       Get.offAll(() => const LoginScreen());
-    } else if (!user.emailVerified && user.providerData.first.providerId == 'password') {
-      // Email user but not verified
-      Get.offAll(() => const VerifyEmailScreen());
-    } else {
-      Get.offAll(() => const HomeScreen());
+      return;
     }
+
+    // FIX: Refresh the token so emailVerified is accurate
+    try { await user.reload(); } catch (_) {}
+    final freshUser = FirebaseAuth.instance.currentUser;
+
+    if (freshUser == null) {
+      Get.offAll(() => const LoginScreen());
+      return;
+    }
+
+    if (!freshUser.emailVerified &&
+        freshUser.providerData.first.providerId == 'password') {
+      Get.offAll(() => const VerifyEmailScreen());
+      return;
+    }
+
+    // FIX: When the app launches with an already-logged-in user (i.e. they
+    // didn't go through signIn() this session), we must still ensure their
+    // Firestore doc exists and their online status is correct.
+    // Previously this was only done inside signIn(), so users who were
+    // auto-logged-in via SplashScreen would get "User not found" on Profile
+    // and "No users found" on People if their doc was missing.
+    final authService = AuthService();
+    await authService.ensureUserDocOnAppStart(freshUser);
+
+    Get.offAll(() => const HomeScreen());
   }
 
   @override
@@ -64,9 +88,9 @@ class _SplashScreenState extends State<SplashScreen> {
             )
                 .animate()
                 .scale(
-                    begin: const Offset(0.5, 0.5),
-                    duration: 600.ms,
-                    curve: Curves.elasticOut)
+                begin: const Offset(0.5, 0.5),
+                duration: 600.ms,
+                curve: Curves.elasticOut)
                 .fadeIn(duration: 400.ms),
             const SizedBox(height: 24),
             const Text(

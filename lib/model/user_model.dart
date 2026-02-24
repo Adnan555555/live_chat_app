@@ -24,15 +24,32 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      uid: map['uid'] ?? '',
-      name: map['name'] ?? '',
-      email: map['email'] ?? '',
-      photoUrl: map['photoUrl'] ?? '',
-      isOnline: map['isOnline'] ?? false,
-      emailVerified: map['emailVerified'] ?? false,
-      lastSeen: (map['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      status: map['status'] ?? '👋 Hey there! I am using Wavechat.',
+      uid: map['uid'] as String? ?? '',
+      name: map['name'] as String? ?? '',
+      email: map['email'] as String? ?? '',
+      photoUrl: map['photoUrl'] as String? ?? '',
+      isOnline: map['isOnline'] as bool? ?? false,
+      emailVerified: map['emailVerified'] as bool? ?? false,
+      // FIX: lastSeen can be stored as either a Firestore Timestamp OR a plain
+      // int (milliseconds since epoch). The original code cast it directly to
+      // Timestamp?, which threw a _CastError when the value was an int,
+      // silently breaking fromMap() and causing "User not found" / empty lists.
+      lastSeen: _parseLastSeen(map['lastSeen']),
+      status: map['status'] as String? ?? '👋 Hey there! I am using Wavechat.',
     );
+  }
+
+  /// Safely parses lastSeen regardless of how it was stored in Firestore.
+  /// - Firestore Timestamp  → convert via .toDate()
+  /// - int (milliseconds)   → convert via DateTime.fromMillisecondsSinceEpoch()
+  /// - anything else / null → fall back to DateTime.now()
+  static DateTime _parseLastSeen(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    // Handle server timestamp that may come as a Map during pending writes
+    if (value is Map) return DateTime.now();
+    return DateTime.now();
   }
 
   Map<String, dynamic> toMap() {
@@ -43,6 +60,7 @@ class UserModel {
       'photoUrl': photoUrl,
       'isOnline': isOnline,
       'emailVerified': emailVerified,
+      // Store consistently as Timestamp so reads are predictable
       'lastSeen': Timestamp.fromDate(lastSeen),
       'status': status,
     };

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../const/app_constants.dart';
 import '../../model/user_model.dart';
 import '../../service/chat_service.dart';
@@ -16,6 +17,15 @@ class UsersScreen extends StatelessWidget {
     final chatService = ChatService();
     final searchQuery = ''.obs;
     final searchController = TextEditingController();
+
+    // FIX: Read UID fresh here. getAllUsers() filters out the current user,
+    // but the old code relied on currentUserId inside ChatService which reads
+    // from FirebaseAuth at call time — that's actually fine. The real problem
+    // was that when switching accounts the StreamBuilder was NOT rebuilt because
+    // UsersScreen is inside an IndexedStack (never unmounted). Keying the
+    // StreamBuilder on the current uid forces a new stream subscription whenever
+    // the logged-in user changes.
+    final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return SafeArea(
       child: Column(
@@ -51,12 +61,15 @@ class UsersScreen extends StatelessWidget {
 
           Expanded(
             child: StreamBuilder<List<UserModel>>(
+              // FIX: key forces the StreamBuilder to dispose the old stream and
+              // create a new one whenever the signed-in user changes.
+              key: ValueKey(currentUid),
               stream: chatService.getAllUsers(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child:
-                        CircularProgressIndicator(color: AppTheme.secondary),
+                    CircularProgressIndicator(color: AppTheme.secondary),
                   );
                 }
 
@@ -65,12 +78,12 @@ class UsersScreen extends StatelessWidget {
                   if (searchQuery.value.isNotEmpty) {
                     users = users
                         .where((u) =>
-                            u.name
-                                .toLowerCase()
-                                .contains(searchQuery.value) ||
-                            u.email
-                                .toLowerCase()
-                                .contains(searchQuery.value))
+                    u.name
+                        .toLowerCase()
+                        .contains(searchQuery.value) ||
+                        u.email
+                            .toLowerCase()
+                            .contains(searchQuery.value))
                         .toList();
                   }
 
@@ -101,19 +114,19 @@ class UsersScreen extends StatelessWidget {
                       if (online.isNotEmpty) ...[
                         _sectionHeader('Online Now', online.length),
                         ...online.asMap().entries.map((e) => _UserTile(
-                              user: e.value,
-                              index: e.key,
-                              onTap: () => _openChat(chatService, e.value),
-                            )),
+                          user: e.value,
+                          index: e.key,
+                          onTap: () => _openChat(chatService, e.value),
+                        )),
                         const SizedBox(height: 8),
                       ],
                       if (offline.isNotEmpty) ...[
                         _sectionHeader('All Users', offline.length),
                         ...offline.asMap().entries.map((e) => _UserTile(
-                              user: e.value,
-                              index: online.length + e.key,
-                              onTap: () => _openChat(chatService, e.value),
-                            )),
+                          user: e.value,
+                          index: online.length + e.key,
+                          onTap: () => _openChat(chatService, e.value),
+                        )),
                       ],
                       const SizedBox(height: 24),
                     ],
@@ -160,7 +173,7 @@ class UsersScreen extends StatelessWidget {
   Future<void> _openChat(ChatService chatService, UserModel user) async {
     final chatId = await chatService.getOrCreateChat(user.uid);
     Get.to(
-      () => ChatScreen(chatId: chatId, otherUser: user),
+          () => ChatScreen(chatId: chatId, otherUser: user),
       transition: Transition.rightToLeft,
     );
   }
@@ -202,7 +215,7 @@ class _UserTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style:
-            const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+        const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
       ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

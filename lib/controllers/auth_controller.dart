@@ -6,6 +6,8 @@ import '../service/notification_service.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 import '../screens/home/home_screen.dart';
+import 'home_controller.dart';
+import 'profile_controller.dart';
 
 class AuthController extends GetxController {
   final AuthService _authService = AuthService();
@@ -32,7 +34,6 @@ class AuthController extends GetxController {
       if (error != null) {
         errorMessage.value = error;
       } else {
-        // Go to email verification screen
         Get.offAll(() => const VerifyEmailScreen());
       }
     } finally {
@@ -53,6 +54,11 @@ class AuthController extends GetxController {
         errorMessage.value = error;
       } else {
         await NotificationService().initialize();
+        // FIX: Purge any stale controllers from a previous session before
+        // navigating to HomeScreen. HomeScreen's build() also does this, but
+        // doing it here too means the controllers are clean before the route
+        // transition even starts, preventing any brief flash of old data.
+        _clearSessionControllers();
         Get.offAll(() => const HomeScreen());
       }
     } finally {
@@ -70,6 +76,7 @@ class AuthController extends GetxController {
         errorMessage.value = error;
       } else {
         await NotificationService().initialize();
+        _clearSessionControllers();
         Get.offAll(() => const HomeScreen());
       }
     } finally {
@@ -79,6 +86,10 @@ class AuthController extends GetxController {
 
   // ─── Sign Out ─────────────────────────────────────────────────────
   Future<void> signOut() async {
+    // FIX: Clear all session-scoped controllers BEFORE signing out so that
+    // their onClose() callbacks (e.g. setting isOnline=false) still have a
+    // valid Firebase user when they run.
+    _clearSessionControllers();
     await NotificationService().clearToken();
     await _authService.signOut();
     Get.offAll(() => const LoginScreen());
@@ -130,4 +141,16 @@ class AuthController extends GetxController {
       isConfirmPasswordVisible.value = !isConfirmPasswordVisible.value;
 
   void clearError() => errorMessage.value = '';
+
+  // ─── Helper ───────────────────────────────────────────────────────
+  /// Deletes all controllers that are scoped to a user session so they don't
+  /// leak state between account switches.
+  void _clearSessionControllers() {
+    if (Get.isRegistered<HomeController>()) {
+      Get.delete<HomeController>(force: true);
+    }
+    if (Get.isRegistered<ProfileController>()) {
+      Get.delete<ProfileController>(force: true);
+    }
+  }
 }

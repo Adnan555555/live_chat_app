@@ -13,11 +13,25 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // FIX: Delete stale ProfileController before putting a new one.
+    // Without this, switching accounts reuses the old controller whose
+    // userStream getter reads `FirebaseAuth.instance.currentUser!.uid` —
+    // which would be correct on its own, but the stream subscription created
+    // during the previous session is still active and was never rebuilt
+    // because ProfileScreen lives in an IndexedStack (never unmounted).
+    if (Get.isRegistered<ProfileController>()) {
+      Get.delete<ProfileController>(force: true);
+    }
     final controller = Get.put(ProfileController());
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    // FIX: Read uid here and pass it into the StreamBuilder key so the
+    // stream is fully replaced whenever the logged-in user changes.
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return SafeArea(
       child: StreamBuilder<UserModel?>(
+        // FIX: key forces disposal & recreation of the stream on user change.
+        key: ValueKey(uid),
         stream: controller.userStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -38,7 +52,7 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 16),
 
-                // Avatar (no photo upload — no Storage)
+                // Avatar
                 UserAvatar(
                   user: user,
                   size: 100,
@@ -83,7 +97,7 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 6),
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppTheme.secondary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -111,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
                   onTap: () => _editStatus(context, controller, user),
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceLight,
                       borderRadius: BorderRadius.circular(20),
@@ -169,7 +183,7 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.verified_outlined,
                     title: 'Email Verified',
                     subtitle:
-                        user.emailVerified ? 'Verified ✓' : 'Not verified',
+                    user.emailVerified ? 'Verified ✓' : 'Not verified',
                     iconColor: user.emailVerified
                         ? AppTheme.secondary
                         : AppTheme.error,
@@ -364,15 +378,15 @@ class ProfileScreen extends StatelessWidget {
       ),
       subtitle: subtitle != null
           ? Text(subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  const TextStyle(color: AppTheme.textSecondary, fontSize: 12))
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style:
+          const TextStyle(color: AppTheme.textSecondary, fontSize: 12))
           : null,
       trailing: trailing ??
           (onTap != null
               ? const Icon(Icons.chevron_right_rounded,
-                  color: AppTheme.textSecondary, size: 20)
+              color: AppTheme.textSecondary, size: 20)
               : null),
     );
   }

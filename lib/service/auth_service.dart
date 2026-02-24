@@ -31,7 +31,7 @@ class AuthService {
           errStr.contains('type cast');
 
       if (isPigeonCrash && _auth.currentUser != null) {
-        // ✅ Account was created despite the crash — continue
+        // Account was created despite the crash — continue
       } else if (e is FirebaseAuthException) {
         return _handleError(e);
       } else {
@@ -42,13 +42,10 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return 'Sign up failed — please try again.';
 
-    // Update display name (ignore errors)
     try { await user.updateDisplayName(name.trim()); } catch (_) {}
-
-    // Send verification email (ignore errors)
     try { await user.sendEmailVerification(); } catch (_) {}
 
-    // ✅ Save to Firestore — this MUST succeed
+    // Save to Firestore
     try {
       await _firestore
           .collection(AppConstants.usersCollection)
@@ -60,7 +57,7 @@ class AuthService {
         'photoUrl': '',
         'isOnline': false,
         'emailVerified': false,
-        'lastSeen': DateTime.now().millisecondsSinceEpoch,
+        'lastSeen': Timestamp.fromDate(DateTime.now()),
         'status': '👋 Hey there! I am using Wavechat.',
         'fcmToken': '',
       });
@@ -68,7 +65,7 @@ class AuthService {
       return 'Account created but profile save failed: $e';
     }
 
-    return null; // null = success
+    return null;
   }
 
   // ─── Sign In ──────────────────────────────────────────────────────────────
@@ -100,7 +97,7 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return 'Sign in failed';
 
-    // ✅ Get fresh token to check emailVerified accurately
+    // Get fresh token to check emailVerified accurately
     try { await user.getIdToken(true); } catch (_) {}
 
     if (!(_auth.currentUser?.emailVerified ?? false)) {
@@ -108,7 +105,11 @@ class AuthService {
       return 'Please verify your email first. Check your inbox for the verification link.';
     }
 
-    // ✅ Ensure Firestore doc exists (in case signup Firestore write failed)
+    // FIX: Always ensure Firestore doc exists on every sign-in.
+    // This handles cases where:
+    //   1. The signup Firestore write failed (Pigeon crash, network error)
+    //   2. The user doc was manually deleted
+    //   3. Old accounts that predate Firestore doc creation
     await _ensureUserDoc(user);
     await _updateOnlineStatus(user.uid, true);
     return null;
@@ -152,26 +153,52 @@ class AuthService {
   }
 
   // ─── Ensure user doc exists in Firestore ─────────────────────────────────
-  // Called on every sign in — creates doc if missing (handles signup Pigeon crash case)
+  // FIX: This method now CHECKS if the doc exists first.
+  // - If doc EXISTS: only updates online-status fields (preserves name, status, etc.)
+  // - If doc MISSING: creates a complete new doc from Auth user data
+  // This prevents overwriting a user's custom name/status on every login.
   Future<void> _ensureUserDoc(User user, {bool isGoogleUser = false}) async {
     final ref = _firestore
         .collection(AppConstants.usersCollection)
         .doc(user.uid);
 
-    // ✅ Always use set+merge — works whether doc exists or not
-    // Never use update() — it throws if doc doesn't exist
-    await ref.set({
-      'uid': user.uid,
-      'name': user.displayName ?? user.email?.split('@')[0] ?? 'User',
-      'email': user.email ?? '',
-      'photoUrl': user.photoURL ?? '',
-      'isOnline': true,
-      'emailVerified': isGoogleUser ? true : (user.emailVerified),
-      'lastSeen': DateTime.now().millisecondsSinceEpoch,
-      'status': '👋 Hey there! I am using Wavechat.',
-      'fcmToken': '',
-    }, SetOptions(merge: true)); // merge: true = won't overwrite existing fields like status
+    final doc = await ref.get();
+
+    if (!doc.exists) {
+      // Doc is completely missing — create it fresh
+      // This fixes the "User not found" and "No users found" bugs
+      final name = (user.displayName?.trim().isNotEmpty == true)
+          ? user.displayName!.trim()
+          : (user.email?.split('@')[0] ?? 'User');
+
+      await ref.set({
+        'uid': user.uid,
+        'name': name,
+        'email': user.email ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'isOnline': true,
+        'emailVerified': isGoogleUser ? true : (user.emailVerified),
+        'lastSeen': Timestamp.fromDate(DateTime.now()),
+        'status': '👋 Hey there! I am using Wavechat.',
+        'fcmToken': '',
+      });
+    } else {
+      // Doc exists — only update fields that should refresh on login
+      // Use merge:true and only touch online-status related fields
+      // so we never overwrite user's customized name or status
+      await ref.set({
+        'isOnline': true,
+        'lastSeen': Timestamp.fromDate(DateTime.now()),
+        // FIX: Also refresh emailVerified in case user just verified their email
+        'emailVerified': isGoogleUser ? true : (user.emailVerified),
+        // FIX: Ensure uid and email fields are always present (handles
+        // docs created before these fields were added)
+        'uid': user.uid,
+        'email': user.email ?? doc.data()?['email'] ?? '',
+      }, SetOptions(merge: true));
+    }
   }
+
   Future<void> _updateOnlineStatus(String uid, bool isOnline) async {
     try {
       await _firestore
@@ -179,10 +206,11 @@ class AuthService {
           .doc(uid)
           .set({
         'isOnline': isOnline,
-        'lastSeen': DateTime.now().millisecondsSinceEpoch,
-      }, SetOptions(merge: true)); // ✅ set+merge instead of update()
+        'lastSeen': Timestamp.fromDate(DateTime.now()),
+      }, SetOptions(merge: true));
     } catch (_) {}
   }
+
   Future<String?> resendVerificationEmail() async {
     try {
       await _auth.currentUser?.sendEmailVerification();
@@ -214,6 +242,18 @@ class AuthService {
     final uid = _auth.currentUser?.uid;
     if (uid == null || uid.isEmpty) return;
     await _updateOnlineStatus(uid, isOnline);
+  }
+
+  // FIX: Public method called from SplashScreen for users who are already
+  // logged in when the app starts (i.e. they skip the signIn() flow).
+  // Without this, a user whose Firestore doc is missing would see
+  // "User not found" on Profile and "No users found" on People every time
+  // they open the app after a fresh install or cache clear.
+  Future<void> ensureUserDocOnAppStart(User user) async {
+    final isGoogle = user.providerData
+        .any((p) => p.providerId == 'google.com');
+    await _ensureUserDoc(user, isGoogleUser: isGoogle);
+    await _updateOnlineStatus(user.uid, true);
   }
 
   String _handleError(FirebaseAuthException e) {

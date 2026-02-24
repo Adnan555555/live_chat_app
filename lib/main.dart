@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'const/app_constants.dart';
 import 'firebase_options.dart';
@@ -15,8 +16,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize notifications after Firebase
-  await NotificationService().initialize();
+  // Register the background message handler ONLY — do NOT call the full
+  // NotificationService().initialize() here because that tries to save the
+  // FCM token to Firestore, but no user is logged in yet at app startup.
+  // Full initialization (permissions + token save) is done inside signIn()
+  // and signInWithGoogle() in AuthController, after auth succeeds.
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
